@@ -76,12 +76,12 @@ RESNET_WEIGHTS_PATH = '/kaggle/input/resnet50/resnet50_weights_tf_dim_ordering_t
 ```
 
 > `TEST_SIZE`: 학습 데이터 집합에서 검증에 사용할 데이터의 비율이 아닐까...?  
-> `RANDOM_STATE`: ?  
-> `BATCH_SIZE`: ?  
-> `NO_EPOCHS`: ?  
+> `RANDOM_STATE`: 데이터를 train/validation/test로 분할 할 때 셔플을 위한 시드.    
+> `BATCH_SIZE`: 몇개의 샘플마다 가중치를 조정할 것인지.  
+> `NO_EPOCHS`: 모델 학습시 학습 반복 횟수.  
 > `NUM_CLASSES`: 분류할 클래스의 개수가 아닐까? 강아지 고양이 2개이다.  
 > `SAMPLE_SIZE`: `train`데이터 집합에 있는 25000개의 사진 중 몇개를 사용할 것인지이다.  
-> `PATH`: ?  
+> `PATH`: **train**이미지와 **test**이미지가 있는 폴더의 경로  
 > `TRAIN_FOLDER`: `train`폴더의 경로  
 > `TEST_FOLDER` : `test`폴더의 경로  
 > `IMG_SIZE`: 사용할 이미지의 크기  
@@ -307,5 +307,63 @@ X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=TEST_SIZE, ran
 ```
 
 > `X`: 앞서 정의한 이미지 데이터 집합  
-> `y: 앞서 정의한 라벨 데이터 집합
-> `train_test_split`: 
+> `y`: 앞서 정의한 라벨 데이터 집합   
+> `train_test_split(분할시킬 데이터, 테스트 데이터셋 비율, 학습 데이터셋 비율, 랜덤 시드값)`  
+> 이미지 데이터 집합에서 학습용 데이터들은 **X_train**에 검증용 데이터들은 **X_val**에 대입한다. 마찬가지로 라벨 데이터 집합에서 학습용 라벨들은 **y_train**에 검증용 라벨들은 **y_val**에 대입한다.  
+
+### Train the model
+
+We are now ready to train our model.
+
+``` python
+train_model = model.fit(X_train, y_train,
+                  batch_size=BATCH_SIZE,
+                  epochs=NO_EPOCHS,
+                  verbose=1,
+                  validation_data=(X_val, y_val))
+```
+
+> `model.fit(x,y,batch_size=32,epochs=10)`: 인자는 순서대로 입력 데이터, 라벨, 몇개의 샘플로 가중치를 조정할 것인지, 학습 반복 횟수를 나타낸다. 이때 **bach_size**가 작을수록 가중치가 자주 변경된다. 가령 **batch_size**가 32라면 데이터 32개마다 가중치가 조정된다.
+
+### Validation accuracy and loss
+
+Let's show the train and validation accuracy on the same plot. As well, we will represent the train and validation loss on the same graph.
+
+동일한 그래프에서 학습 정확도와 검증 정확도를 보자. 또한 동일한 그래프에서 학습에서의 손실값과 유효성 검사에서의 손실값을 보자.  
+
+```python
+def plot_accuracy_and_loss(train_model):
+    hist = train_model.history
+    acc = hist['acc']
+    val_acc = hist['val_acc']
+    loss = hist['loss']
+    val_loss = hist['val_loss']
+    epochs = range(len(acc))
+    f, ax = plt.subplots(1,2, figsize=(14,6))
+    ax[0].plot(epochs, acc, 'g', label='Training accuracy')
+    ax[0].plot(epochs, val_acc, 'r', label='Validation accuracy')
+    ax[0].set_title('Training and validation accuracy')
+    ax[0].legend()
+    ax[1].plot(epochs, loss, 'g', label='Training loss')
+    ax[1].plot(epochs, val_loss, 'r', label='Validation loss')
+    ax[1].set_title('Training and validation loss')
+    ax[1].legend()
+    plt.show()
+plot_accuracy_and_loss(train_model)
+```
+
+> `train_model.history`: 각 에포크마다 **loss**, **acc**, **val_lose**, **val_acc**를 저장한다. 이때 각각은 손실값, 정확도, 검증 손실값, 검증 정확도를 나타낸다.
+> `subplots`: 앞서 살펴본 여러개의 그래프를 한번에 보여주는 메서드이다.
+
+Let's also show the numeric validation accuracy and loss.
+
+수치적인 정확도와 손실도도 보자.  
+
+```python
+score = model.evaluate(X_val, y_val, verbose=0)
+print('Validation loss:', score[0])
+print('Validation accuracy:', score[1])
+```
+
+>  **X_val**, **y_val**은 앞서 정의한 검증용 데이터와 레이블 집합이다.  
+> `evaluate()`: 정확도 또는 손실을 리턴함.
