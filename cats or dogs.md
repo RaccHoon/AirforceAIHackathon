@@ -355,6 +355,8 @@ plot_accuracy_and_loss(train_model)
 > `train_model.history`: 각 에포크마다 **loss**, **acc**, **val_lose**, **val_acc**를 저장한다. 이때 각각은 손실값, 정확도, 검증 손실값, 검증 정확도를 나타낸다.
 > `subplots`: 앞서 살펴본 여러개의 그래프를 한번에 보여주는 메서드이다.
 
+<img src="./cats_or_dogs_sample_images/accuracy_and_loss.PNG">
+
 Let's also show the numeric validation accuracy and loss.
 
 수치적인 정확도와 손실도도 보자.  
@@ -441,6 +443,8 @@ for i,data in enumerate(test[:25]):
 plt.show()
 ```
 
+<img src="./cats_or_dogs_sample_images/result.PNG"></img>
+
 > 앞에서 언급한 subplots()는 여러 개의 그래프를 한번에 보여주는 메서드이다.
 > `enumerate()`: 리터러블한 컨테이너를 전달하면 (인덱스, 컨테이너 원소)형태의 튜플로 변환한다. 위 코드에서는 `i`에 인덱스, `data`에 원소를 할당한다.
 > 위에서 한 작업과 동일하다
@@ -456,4 +460,12 @@ for img in tqdm(test):
     predicted = model.predict([data])[0]
     img_list.append(img_idx)
     pred_list.append(predicted[1])
+```
+#### Submission file
+Let's prepare now the submission file.
+
+``` python
+submission = pd.DataFrame({'id':img_list , 'label':pred_list})
+submission.head()
+submission.to_csv("submission.csv", index=False)
 ```
