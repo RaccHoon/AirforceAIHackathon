@@ -457,5 +457,3 @@ for img in tqdm(test):
     img_list.append(img_idx)
     pred_list.append(predicted[1])
 ```
-
-
