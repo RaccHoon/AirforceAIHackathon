@@ -76,12 +76,12 @@ RESNET_WEIGHTS_PATH = '/kaggle/input/resnet50/resnet50_weights_tf_dim_ordering_t
 ```
 
 > `TEST_SIZE`: 학습 데이터 집합에서 검증에 사용할 데이터의 비율이 아닐까...?  
-> `RANDOM_STATE`: ?  
-> `BATCH_SIZE`: ?  
-> `NO_EPOCHS`: ?  
+> `RANDOM_STATE`: 데이터를 train/validation/test로 분할 할 때 셔플을 위한 시드.    
+> `BATCH_SIZE`: 몇개의 샘플마다 가중치를 조정할 것인지.  
+> `NO_EPOCHS`: 모델 학습시 학습 반복 횟수.  
 > `NUM_CLASSES`: 분류할 클래스의 개수가 아닐까? 강아지 고양이 2개이다.  
 > `SAMPLE_SIZE`: `train`데이터 집합에 있는 25000개의 사진 중 몇개를 사용할 것인지이다.  
-> `PATH`: ?  
+> `PATH`: **train**이미지와 **test**이미지가 있는 폴더의 경로  
 > `TRAIN_FOLDER`: `train`폴더의 경로  
 > `TEST_FOLDER` : `test`폴더의 경로  
 > `IMG_SIZE`: 사용할 이미지의 크기  
@@ -307,5 +307,155 @@ X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=TEST_SIZE, ran
 ```
 
 > `X`: 앞서 정의한 이미지 데이터 집합  
-> `y: 앞서 정의한 라벨 데이터 집합
-> `train_test_split`: 
+> `y`: 앞서 정의한 라벨 데이터 집합   
+> `train_test_split(분할시킬 데이터, 테스트 데이터셋 비율, 학습 데이터셋 비율, 랜덤 시드값)`  
+> 이미지 데이터 집합에서 학습용 데이터들은 **X_train**에 검증용 데이터들은 **X_val**에 대입한다. 마찬가지로 라벨 데이터 집합에서 학습용 라벨들은 **y_train**에 검증용 라벨들은 **y_val**에 대입한다.  
+
+### Train the model
+
+We are now ready to train our model.
+
+``` python
+train_model = model.fit(X_train, y_train,
+                  batch_size=BATCH_SIZE,
+                  epochs=NO_EPOCHS,
+                  verbose=1,
+                  validation_data=(X_val, y_val))
+```
+
+> `model.fit(x,y,batch_size=32,epochs=10)`: 인자는 순서대로 입력 데이터, 라벨, 몇개의 샘플로 가중치를 조정할 것인지, 학습 반복 횟수를 나타낸다. 이때 **bach_size**가 작을수록 가중치가 자주 변경된다. 가령 **batch_size**가 32라면 데이터 32개마다 가중치가 조정된다.
+
+### Validation accuracy and loss
+
+Let's show the train and validation accuracy on the same plot. As well, we will represent the train and validation loss on the same graph.
+
+동일한 그래프에서 학습 정확도와 검증 정확도를 보자. 또한 동일한 그래프에서 학습에서의 손실값과 유효성 검사에서의 손실값을 보자.  
+
+```python
+def plot_accuracy_and_loss(train_model):
+    hist = train_model.history
+    acc = hist['acc']
+    val_acc = hist['val_acc']
+    loss = hist['loss']
+    val_loss = hist['val_loss']
+    epochs = range(len(acc))
+    f, ax = plt.subplots(1,2, figsize=(14,6))
+    ax[0].plot(epochs, acc, 'g', label='Training accuracy')
+    ax[0].plot(epochs, val_acc, 'r', label='Validation accuracy')
+    ax[0].set_title('Training and validation accuracy')
+    ax[0].legend()
+    ax[1].plot(epochs, loss, 'g', label='Training loss')
+    ax[1].plot(epochs, val_loss, 'r', label='Validation loss')
+    ax[1].set_title('Training and validation loss')
+    ax[1].legend()
+    plt.show()
+plot_accuracy_and_loss(train_model)
+```
+
+> `train_model.history`: 각 에포크마다 **loss**, **acc**, **val_lose**, **val_acc**를 저장한다. 이때 각각은 손실값, 정확도, 검증 손실값, 검증 정확도를 나타낸다.
+> `subplots`: 앞서 살펴본 여러개의 그래프를 한번에 보여주는 메서드이다.
+
+Let's also show the numeric validation accuracy and loss.
+
+수치적인 정확도와 손실도도 보자.  
+
+```python
+score = model.evaluate(X_val, y_val, verbose=0)
+print('Validation loss:', score[0])
+print('Validation accuracy:', score[1])
+```
+
+>  **X_val**, **y_val**은 앞서 정의한 검증용 데이터와 레이블 집합이다.  
+> `evaluate()`: 정확도 또는 손실을 리턴함.
+
+### Validation accuracy per class
+
+Let's show the validation accuracy per each class.
+
+We start by predicting the labels for the validation set.
+
+클래스별 검증 정확도를 보자.
+
+**validation** 세트의 데이터에서 레이블을 예측해봄으로 정확도를 측정할 수 있다.
+
+``` python
+#get the predictions for the test data
+predicted_classes = model.predict_classes(X_val)
+#get the indices to be plotted
+y_true = np.argmax(y_val,axis=1)
+```
+
+> predicated_classes에 예측 결과, y_true에 정답을 할당하는것 같다.  
+> 근데 인터넷에 검색해보니 **predict_classes**가 deprecated 됐다고 나온다.  
+
+We create two indices, **correct** and **incorrect**, for the images in the validation set with class predicted correctly and incorrectly, respectively.
+
+우리는 각각 올바르게 예측된 클래스와 부정확하게 예측된 클래스로 구분하여 validation 집합의 이미지에 대해 **correct** 및 **incorrect**이라는 두 개의 인덱스를 생성한다.
+
+```python
+correct = np.nonzero(predicted_classes==y_true)[0]
+incorrect = np.nonzero(predicted_classes!=y_true)[0]
+```
+> `np.nonzero()`: 요소들 중 0이 아닌 값들의 인덱스를 반환  
+> 근데 잘 이해가 안된다...
+
+We saw what is the number of correctly vs. incorrectly predicted values in the validation set.    
+
+We show here the classification report for the validation set, with the accuracy per class and overall.
+
+validation 집합에서 올바르게 예측된 값과 잘못 예측된 값의 수를 확인했다.
+
+여기서 클래스별 및 전체 정확도와 함께 validation 집합에 대한 분류 결과를 보여준다.  
+
+```python
+target_names = ["Class {}:".format(i) for i in range(NUM_CLASSES)]
+print(classification_report(y_true, predicted_classes, target_names=target_names))
+```
+
+> `classification_report()`: 라벨, 예측값, 클래스의 이름 순서로 입력하는 것 같다. 표 형식으로 클래스별 정확도, 점수 등을 보여준다.
+
+## Prepare the submission
+
+### Show test images with predicted class
+
+Let's show few of the test images with the predicted class. For this, we will have to predict the class.
+
+일부 test 이미지에 대해 분류 작업을 해보자. 이를 위해 클래스를 예측해야 한다.  
+
+``` python
+f, ax = plt.subplots(5,5, figsize=(15,15))
+for i,data in enumerate(test[:25]):
+    img_num = data[1]
+    img_data = data[0]
+    orig = img_data
+    data = img_data.reshape(-1,IMG_SIZE,IMG_SIZE,3)
+    model_out = model.predict([data])[0]
+    
+    if np.argmax(model_out) == 1: 
+        str_predicted='Dog'
+    else: 
+        str_predicted='Cat'
+    ax[i//5, i%5].imshow(orig)
+    ax[i//5, i%5].axis('off')
+    ax[i//5, i%5].set_title("Predicted:{}".format(str_predicted))    
+plt.show()
+```
+
+> 앞에서 언급한 subplots()는 여러 개의 그래프를 한번에 보여주는 메서드이다.
+> `enumerate()`: 리터러블한 컨테이너를 전달하면 (인덱스, 컨테이너 원소)형태의 튜플로 변환한다. 위 코드에서는 `i`에 인덱스, `data`에 원소를 할당한다.
+> 위에서 한 작업과 동일하다
+
+#### Test data prediction
+``` python
+pred_list = []
+img_list = []
+for img in tqdm(test):
+    img_data = img[0]
+    img_idx = img[1]
+    data = img_data.reshape(-1,IMG_SIZE,IMG_SIZE,3)
+    predicted = model.predict([data])[0]
+    img_list.append(img_idx)
+    pred_list.append(predicted[1])
+```
+
+
